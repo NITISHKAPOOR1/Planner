@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>60-Day Master Study Planner - Precision OMR Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
+        .progress-bar-fill { transition: width 0.4s ease; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .modal-overlay { background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
+        
+        /* OMR Styles */
+        .omr-radio input:checked + div { background-color: #4f46e5; color: white; border-color: #4f46e5; }
+        .omr-correct { background-color: #22c55e !important; color: white !important; border-color: #22c55e !important; }
+        .omr-wrong { background-color: #ef4444 !important; color: white !important; border-color: #ef4444 !important; }
+        .omr-missed-key { border: 2px dashed #22c55e !important; color: #22c55e !important; background-color: #dcfce7 !important; }
+        
+        .omr-q-row { transition: all 0.2s ease; }
+        .omr-q-active { background-color: #eef2ff !important; border-color: #c7d2fe !important; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm z-10 p-3 md:p-4 flex flex-col md:flex-row justify-between items-center shrink-0 gap-4 md:gap-0">
+        <div class="w-full md:w-auto text-center md:text-left flex justify-between items-center">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-800"><i class="fas fa-list text-indigo-600 mr-2"></i> PCS Master Planner</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Compact Stripe View & Segment Tracking</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4 md:gap-6 w-full md:w-auto justify-between md:justify-end">
+            <!-- Large Rectangular Live Clock -->
+            <div class="flex flex-col items-center justify-center px-4 py-2 rounded-lg border-2 border-indigo-600 bg-indigo-50 shadow-sm shrink-0 min-w-[130px]">
+                <span id="main-clock" class="text-xl md:text-2xl font-bold font-mono text-indigo-900 tracking-wider">00:00:00</span>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div class="flex flex-col text-right hidden sm:flex">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase">Start Date</label>
+                    <input type="date" id="start-date" class="border rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 bg-slate-50">
+                </div>
+                <button onclick="app.resetData()" class="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded shadow-sm hover:bg-red-100 transition text-xs font-bold">
+                    <i class="fas fa-undo mr-1"></i> Reset
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="bg-white border-b flex px-4 shrink-0 shadow-sm z-10">
+        <button onclick="app.switchTab('stripe')" id="tab-stripe" class="px-4 py-3 border-b-2 border-indigo-600 text-indigo-600 font-bold transition text-sm">
+            <i class="fas fa-stream mr-1"></i> Stripe View
+        </button>
+        <button onclick="app.switchTab('scorecard')" id="tab-scorecard" class="px-4 py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 font-bold transition text-sm">
+            <i class="fas fa-chart-pie mr-1"></i> Scorecard & History
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-2 md:p-4 relative">
+        
+        <!-- View 1: Stripe View -->
+        <div id="view-stripe" class="max-w-6xl mx-auto space-y-3 block">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
+                <div class="bg-sky-50 border-l-4 border-sky-400 p-2 rounded shadow-sm flex items-center justify-between">
+                    <div><span class="font-bold text-sm text-sky-900">Phase 1 (33 Days)</span><p class="text-[10px] text-sky-700 uppercase font-bold">Reading + MCQ</p></div>
+                </div>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded shadow-sm flex items-center justify-between">
+                    <div><span class="font-bold text-sm text-yellow-900">Phase 2 (15 Days)</span><p class="text-[10px] text-yellow-700 uppercase font-bold">Revision 1 + MCQ</p></div>
+                </div>
+                <div class="bg-green-50 border-l-4 border-green-400 p-2 rounded shadow-sm flex items-center justify-between">
+                    <div><span class="font-bold text-sm text-green-900">Phase 3 (12 Days)</span><p class="text-[10px] text-green-700 uppercase font-bold">Revision 2 + MCQ</p></div>
+                </div>
+            </div>
+            
+            <div id="stripe-list" class="space-y-2"></div>
+        </div>
+
+        <!-- View 2: Scorecard -->
+        <div id="view-scorecard" class="max-w-6xl mx-auto hidden">
+            <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Attempt History & Comparison</h2>
+                        <p class="text-sm text-slate-500">Detailed breakdown of every MCQ practice session</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-100 text-slate-600">
+                            <tr>
+                                <th class="px-6 py-3 font-semibold">Subject</th>
+                                <th class="px-6 py-3 font-semibold">MCQ Source</th>
+                                <th class="px-6 py-3 font-semibold text-center">Attempt</th>
+                                <th class="px-6 py-3 font-semibold text-center">Time</th>
+                                <th class="px-6 py-3 font-semibold text-center">Correct</th>
+                                <th class="px-6 py-3 font-semibold text-center">Wrong</th>
+                                <th class="px-6 py-3 font-semibold text-center text-indigo-600">Net Score</th>
+                                <th class="px-6 py-3 font-semibold text-center">Comparison</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scorecard-body" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal 1: Day Detailed Sheet -->
+    <div id="day-modal" class="fixed inset-0 z-40 flex items-center justify-center modal-overlay hidden">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
+                <div>
+                    <span id="modal-phase-badge" class="text-xs font-bold px-2 py-1 rounded mb-1 inline-block border bg-white"></span>
+                    <h2 class="text-2xl font-bold text-slate-800" id="modal-title">Day X</h2>
+                    <p class="text-sm text-slate-500 font-semibold" id="modal-date"></p>
+                </div>
+                <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600 text-3xl transition">&times;</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                <!-- Topics with Checkboxes -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-book mr-1"></i> Syllabus Topics</h3>
+                    </div>
+                    <div id="modal-topics" class="space-y-2 bg-slate-50 p-4 rounded border"></div>
+                </div>
+
+                <!-- Daily Tracker & Time -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2"><i class="fas fa-check-square mr-1"></i> Task Tracker</h3>
+                        <div class="bg-white p-4 rounded border flex flex-col gap-3" id="modal-tasks-container"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2"><i class="fas fa-stopwatch mr-1"></i> Total Time</h3>
+                        <div class="bg-white p-4 rounded border h-[88px] flex items-center">
+                            <div class="w-full">
+                                <label class="block text-xs font-semibold mb-1 text-slate-500">Minutes Spent Today</label>
+                                <input type="number" id="modal-minutes" min="0" placeholder="e.g. 240" class="w-full border rounded px-3 py-2 outline-none focus:border-indigo-500 bg-slate-50">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MCQ Source Manager -->
+                <div>
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2"><i class="fas fa-pen-alt mr-1"></i> MCQ Practice Sources</h3>
+                    <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex gap-3 items-end mb-3">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-bold uppercase mb-1 text-indigo-800">Source Name (e.g. Ghatnachakra)</label>
+                            <input type="text" id="new-test-source" class="w-full border rounded px-3 py-1.5 text-sm outline-none focus:border-indigo-500" placeholder="Source Name">
+                        </div>
+                        <div class="w-24">
+                            <label class="block text-[10px] font-bold uppercase mb-1 text-indigo-800">Total Q's</label>
+                            <input type="number" id="new-test-count" class="w-full border rounded px-3 py-1.5 text-sm outline-none focus:border-indigo-500" placeholder="e.g. 50">
+                        </div>
+                        <button onclick="app.addTest()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded text-sm font-bold shadow transition h-[34px]">
+                            + Add
+                        </button>
+                    </div>
+                    <div id="modal-tests-list" class="space-y-2"></div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t bg-slate-50 flex justify-end">
+                <button onclick="app.closeModal()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold shadow transition">Save Progress</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: OMR Test Interface -->
+    <div id="omr-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden">
+        <div class="bg-white shadow-2xl w-full h-full md:w-[95vw] md:h-[95vh] md:rounded-xl flex flex-col">
+            
+            <!-- OMR Header with Timer -->
+            <div class="px-6 py-4 border-b bg-slate-800 text-white flex justify-between items-center shrink-0">
+                <div>
+                    <h2 class="text-xl font-bold" id="omr-title">OMR Practice</h2>
+                    <p class="text-sm text-slate-300" id="omr-subtitle">Source</p>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="flex flex-col items-center bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700">
+                        <span class="text-[10px] text-slate-400 font-bold tracking-wider uppercase mb-0.5">Total Time</span>
+                        <span id="omr-global-timer" class="font-mono text-xl font-bold text-amber-400">00:00</span>
+                    </div>
+                    <button onclick="app.closeOMR()" class="text-slate-300 hover:text-white text-3xl transition">&times;</button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-hidden flex flex-col md:flex-row">
+                <!-- Left: OMR Sheet -->
+                <div class="flex-1 p-4 md:p-6 overflow-y-auto bg-slate-50 border-r" id="omr-grid-container">
+                    <div id="omr-questions" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                </div>
+
+                <!-- Right: Answer Key, Evaluation & History -->
+                <div class="w-full md:w-80 bg-white p-4 md:p-6 overflow-y-auto flex flex-col shrink-0">
+                    <!-- Current Evaluation Panel -->
+                    <div class="mb-4 border-b pb-4">
+                        <h3 class="font-bold text-slate-700 mb-2"><i class="fas fa-key mr-2 text-indigo-500"></i>Key Verification</h3>
+                        <div class="bg-amber-50 border border-amber-200 text-amber-800 p-2 rounded text-[10px] mb-3 leading-tight">
+                            Paste key (e.g. <strong>ABCD</strong>). Spaces ignored.
+                        </div>
+                        <textarea id="omr-key-input" rows="3" class="w-full border rounded p-2 text-sm outline-none focus:border-indigo-500 mb-3 font-mono uppercase" placeholder="Paste Key Here"></textarea>
+                        <button onclick="app.evaluateOMR()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded shadow-sm transition mb-2 text-sm">
+                            Verify & Evaluate
+                        </button>
+                        
+                        <!-- Results -->
+                        <div id="omr-results" class="hidden border rounded overflow-hidden shadow-sm mt-3">
+                            <div class="bg-slate-100 p-2 text-center border-b font-bold text-slate-700 text-xs">RESULT</div>
+                            <div class="p-3 space-y-1 text-xs bg-white">
+                                <div class="flex justify-between"><span>Total Qs:</span> <span id="res-total" class="font-bold">0</span></div>
+                                <div class="flex justify-between"><span>Attempted:</span> <span id="res-att" class="font-bold">0</span></div>
+                                <div class="flex justify-between text-green-600"><span>Correct:</span> <span id="res-cor" class="font-bold">0</span></div>
+                                <div class="flex justify-between text-red-500"><span>Wrong:</span> <span id="res-wrg" class="font-bold">0</span></div>
+                                <div class="border-t pt-1 mt-1 flex justify-between text-indigo-700 text-sm">
+                                    <strong>Net Score:</strong> <span id="res-net" class="font-bold">0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History Panel -->
+                    <div>
+                        <h3 class="font-bold text-slate-700 mb-2 text-sm"><i class="fas fa-history mr-2 text-indigo-500"></i>Attempt History</h3>
+                        <div id="omr-history-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const syllabusData = [
+            { sub: 'History', txt: 'History 1 - Anc Indus Valley Civilization, Aryan and The Vedic Age, Mahajanapada Period (Mauryas)' },
+            { sub: 'History', txt: 'History 2 - Anc Jainism and Buddhism, Guptas Period, Harshavardhan' },
+            { sub: 'History', txt: 'History 3 - Med Chola - Tripartite Struggle - Sangam Literature, Delhi Sultante, Bahmani Kingdom' },
+            { sub: 'History', txt: 'History 4 - Med Vijaynagar Kingdom, Mughals, Bhakti and Sufi Saints' },
+            { sub: 'History', txt: 'History 5 - Mod Advent of Europeans, Revolt of 1857, Pre Congress Organisations, Formation of Congress' },
+            { sub: 'History', txt: 'History 6 - Mod 1886-1947' },
+            { sub: 'History', txt: 'History Consolidation Day' },
+            { sub: 'Polity', txt: 'Polity 1 Historical Background, Making of the Constitution, Preamble, Salient Features, Union and Territories, Citizenship, DPSP, Fundamental Duties' },
+            { sub: 'Polity', txt: 'Polity 2 Fundamental Rights, Amendment, Basic Structure, Schedule 7 to 10, 5th and 6th Schedule, Panchayat and Municipality, Emergency' },
+            { sub: 'Polity', txt: 'Polity 3 Union and State Executive, President, VP, Prime Minister, COM, Attorney General, Governor, CM, Advocate General' },
+            { sub: 'Polity', txt: 'Polity 4 Parliament, Parliamentary committees, Cabinet Committees, State Legislature, Elections and RPA' },
+            { sub: 'Polity', txt: 'Polity 5 Entire Judiciary, Center-State relations, Constitutional and Non-Constitutional Bodies' },
+            { sub: 'Polity', txt: 'Polity Consolidation Day' },
+            { sub: 'Economy', txt: 'Economy 1 Money, Monetary Policy and Banking' },
+            { sub: 'Economy', txt: 'Economy 2 Fiscal Policy, LPG Reforms, 5 Year Plans' },
+            { sub: 'Economy', txt: 'Economy 3 SEBI (Share Market), Inflation, Poverty' },
+            { sub: 'Economy', txt: 'Economy 4 Balance of Payment, Manufacturing Sector' },
+            { sub: 'Economy', txt: 'Economy 5 Agriculture and Services' },
+            { sub: 'Economy', txt: 'Economy Consolidation Day' },
+            { sub: 'Punjab GK', txt: 'Pb GK - 1 Punjab in the Early 16th Century, Mughal period, Guru Sahiban Period' },
+            { sub: 'Punjab GK', txt: 'Pb GK - 2 Sri Guru Granth Sahib Ji, Baba Banda Singh Bahadur, Punjab from 1716-1753' },
+            { sub: 'Punjab GK', txt: 'Pb GK - 3 Misal period, Maharaja Ranjit Singh, Anglo Sikh Wars, British Administration' },
+            { sub: 'Punjab GK', txt: 'Pb GK - 4 Socio Religious Reform Movements, Freedom Struggle, literature, arts.' },
+            { sub: 'Punjab GK', txt: 'Pb GK - 5 Punjab GK and Punjab Economy, Budget and Economic Survey 2025' },
+            { sub: 'Punjab GK', txt: 'Punjab GK Consolidation Day' },
+            { sub: 'Geography', txt: 'Geo 1 The Earth and the Universe, Geomorphology, Vulcanism, Earthquakes' },
+            { sub: 'Geography', txt: 'Geo 2 Climatogoly' },
+            { sub: 'Geography', txt: 'Geo 3 Oceanography' },
+            { sub: 'Geography', txt: 'Geo 4 Indian Geography' },
+            { sub: 'Science', txt: 'Science 1 General Science - Biology, Biotech and Health' },
+            { sub: 'Science', txt: 'Science 2 General Science - Physics, Space Tech + Info Tech' },
+            { sub: 'Science', txt: 'Science 3 General Science - Chemistry' },
+            { sub: 'Geography & Science', txt: 'Geography & Science Consolidation Day' },
+            { sub: 'Environment', txt: 'Environment 1 Climate Change and its Impact, Ocean acidification, ozone depletion' },
+            { sub: 'Environment', txt: 'Environment 2 Pollution and associated Issues, Disaster Management' },
+            { sub: 'Environment', txt: 'Environment 3 Biodiversity, Forest, Indian Fauna/Flora diversity, Protected Area' },
+            { sub: 'Environment', txt: 'Env Consolidation Day' },
+            { sub: 'Current Affairs', txt: 'Current Affairs 1 January + February 2026' },
+            { sub: 'Current Affairs', txt: 'Current Affairs 2 March + April 2026' },
+            { sub: 'Current Affairs', txt: 'Current Affairs 3 May + June 2027' },
+            { sub: 'Current Affairs', txt: 'Current Affairs 4 July + August 2026' },
+            { sub: 'Current Affairs', txt: 'Current Affairs 5 Sep + Oct 2026' },
+            { sub: 'Current Affairs', txt: 'Current Affairs Consolidation Day' }
+        ];
+
+        const bgColors = {
+            1: [ { bg: 'bg-sky-50', b: 'border-sky-300' }, { bg: 'bg-blue-50', b: 'border-blue-300' }, { bg: 'bg-cyan-50', b: 'border-cyan-300' }, { bg: 'bg-indigo-50', b: 'border-indigo-300' } ],
+            2: [ { bg: 'bg-yellow-50', b: 'border-yellow-300' }, { bg: 'bg-amber-50', b: 'border-amber-300' }, { bg: 'bg-orange-50', b: 'border-orange-300' }, { bg: 'bg-orange-100', b: 'border-orange-400' } ],
+            3: [ { bg: 'bg-green-50', b: 'border-green-300' }, { bg: 'bg-emerald-50', b: 'border-emerald-300' }, { bg: 'bg-teal-50', b: 'border-teal-300' }, { bg: 'bg-lime-50', b: 'border-lime-300' } ]
+        };
+
+        const app = {
+            data: [],
+            startDate: new Date(),
+            activeDayIndex: null,
+            activeTestIndex: null,
+            timerInterval: null,
+            currentTotalSeconds: 0,
+            activeQuestion: null,
+
+            init() {
+                this.initLiveClock();
+
+                document.getElementById('start-date').addEventListener('change', (e) => {
+                    this.startDate = new Date(e.target.value);
+                    this.recalculateDates();
+                    this.saveData();
+                    this.renderStripe();
+                });
+                this.loadData();
+            },
+
+            initLiveClock() {
+                const clockEl = document.getElementById('main-clock');
+                const updateClock = () => {
+                    const now = new Date();
+                    const h = String(now.getHours()).padStart(2, '0');
+                    const m = String(now.getMinutes()).padStart(2, '0');
+                    const s = String(now.getSeconds()).padStart(2, '0');
+                    clockEl.innerText = `${h}:${m}:${s}`;
+                };
+                updateClock();
+                setInterval(updateClock, 1000);
+            },
+
+            loadData() {
+                const stored = localStorage.getItem('pcsPlannerData_v6');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    this.data = parsed.days;
+                    this.startDate = new Date(parsed.startDate);
+                } else {
+                    this.generateFreshData();
+                }
+                document.getElementById('start-date').value = this.startDate.toISOString().split('T')[0];
+                this.renderStripe();
+                this.renderScorecard();
+            },
+
+            saveData() { localStorage.setItem('pcsPlannerData_v6', JSON.stringify({ startDate: this.startDate, days: this.data })); },
+
+            resetData() {
+                if(confirm("Erase ALL progress, checkboxes, and OMR sheets?")) {
+                    localStorage.removeItem('pcsPlannerData_v6');
+                    this.startDate = new Date();
+                    this.loadData();
+                }
+            },
+
+            formatTime(totalSeconds) {
+                const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+                const s = (totalSeconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            },
+
+            distributePhaseSyllabus(numDays) {
+                const dist = Array.from({length: numDays}, () => []);
+                for (let i = 0; i < syllabusData.length; i++) {
+                    const dayIndex = Math.floor((i * numDays) / syllabusData.length);
+                    dist[dayIndex].push({ ...syllabusData[i], completed: false });
+                }
+                return dist;
+            },
+
+            generateFreshData() {
+                this.data = [];
+                const all = [ ...this.distributePhaseSyllabus(33), ...this.distributePhaseSyllabus(15), ...this.distributePhaseSyllabus(12) ];
+                for(let i = 0; i < 60; i++) {
+                    let dDate = new Date(this.startDate);
+                    dDate.setDate(dDate.getDate() + i);
+                    this.data.push({
+                        dayNum: i + 1, date: dDate,
+                        phase: i < 33 ? 1 : i < 48 ? 2 : 3,
+                        topics: all[i],
+                        tasks: { reading: false, rev1: false, rev2: false },
+                        timeMins: 0, tests: []
+                    });
+                }
+                this.saveData();
+            },
+
+            recalculateDates() {
+                for(let i=0; i<this.data.length; i++){
+                    let d = new Date(this.startDate);
+                    d.setDate(d.getDate() + i);
+                    this.data[i].date = d;
+                }
+            },
+
+            getDayProgress(day) {
+                let totalReq = day.topics.length + 1;
+                let completed = 0;
+                day.topics.forEach(t => { if(t.completed) completed++; });
+                const taskKeys = day.phase === 1 ? ['reading'] : day.phase === 2 ? ['rev1'] : ['rev2'];
+                if(day.tasks[taskKeys[0]]) completed++;
+                return Math.round((completed / totalReq) * 100);
+            },
+
+            switchTab(tabId) {
+                document.getElementById('view-stripe').classList.toggle('hidden', tabId !== 'stripe');
+                document.getElementById('view-scorecard').classList.toggle('hidden', tabId !== 'scorecard');
+                ['stripe', 'scorecard'].forEach(id => {
+                    const btn = document.getElementById(`tab-${id}`);
+                    if(id === tabId) {
+                        btn.classList.add('border-indigo-600', 'text-indigo-600');
+                        btn.classList.remove('border-transparent', 'text-slate-500');
+                    } else {
+                        btn.classList.remove('border-indigo-600', 'text-indigo-600');
+                        btn.classList.add('border-transparent', 'text-slate-500');
+                    }
+                });
+                if(tabId === 'scorecard') this.renderScorecard();
+            },
+
+            renderStripe() {
+                const list = document.getElementById('stripe-list');
+                list.innerHTML = '';
+                
+                this.data.forEach((day, idx) => {
+                    const progress = this.getDayProgress(day);
+                    const dateStr = new Date(day.date).toLocaleDateString('en-GB', { weekday:'short', day: '2-digit', month: 'short' });
+                    const isToday = (new Date(day.date).toDateString() === new Date().toDateString());
+                    
+                    const colorScheme = bgColors[day.phase][idx % 4];
+                    const ringClass = isToday ? 'ring-2 ring-indigo-400 ring-offset-1' : '';
+
+                    const topicHTML = day.topics.map(t => `<li class="flex items-start text-xs mb-1 ${t.completed ? 'text-slate-400 line-through' : 'text-slate-700'}"><i class="fas fa-angle-right mt-0.5 mr-1.5 opacity-40"></i><span>${t.txt}</span></li>`).join('');
+
+                    let testStatsHtml = '';
+                    if(day.tests.length > 0) {
+                        day.tests.forEach((t) => {
+                            let evals = t.attempts.filter(a => a.evaluated);
+                            if(evals.length > 0) {
+                                let attBadges = evals.map((a, i) => {
+                                    let pct = ((a.stats.net / t.totalQs) * 100).toFixed(1);
+                                    let col = a.stats.net > 0 ? 'text-green-700 bg-green-100 border-green-200' : 'text-red-600 bg-red-50 border-red-200';
+                                    return `<span title="Attempt ${i+1}" class="text-[9px] px-1 rounded border ${col}">A${i+1}: ${pct}%</span>`;
+                                }).join(' ');
+                                testStatsHtml += `<div class="flex items-center justify-end gap-1 mt-1 w-full"><span class="text-[9px] font-bold text-slate-500 uppercase truncate max-w-[70px]">${t.source}:</span> ${attBadges}</div>`;
+                            }
+                        });
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = `p-2 md:p-3 rounded-lg border border-slate-200 border-l-[6px] ${colorScheme.bg} ${colorScheme.b} shadow-sm hover:shadow transition cursor-pointer flex flex-col md:flex-row gap-3 justify-between items-start ${ringClass}`;
+                    card.onclick = () => { this.openModal(idx); };
+
+                    card.innerHTML = `
+                        <div class="flex-1 w-full overflow-hidden">
+                            <div class="flex justify-between items-end mb-1">
+                                <div>
+                                    <h3 class="font-bold text-sm text-slate-800 leading-tight">Day ${day.dayNum}</h3>
+                                    <p class="text-[10px] font-semibold text-slate-500">${dateStr} • Phase ${day.phase}</p>
+                                </div>
+                                <div class="text-[10px] font-semibold text-slate-500"><i class="fas fa-clock mr-1"></i>${day.timeMins}m</div>
+                            </div>
+                            <div class="w-full bg-white/60 rounded-full h-1.5 mb-2 border border-black/5">
+                                <div class="bg-indigo-500 h-1.5 rounded-full progress-bar-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <ul class="pl-0.5 leading-snug">${topicHTML || '<li class="text-xs text-slate-400 italic">Consolidation / Revision Day</li>'}</ul>
+                        </div>
+                        
+                        <div class="w-full md:w-auto md:min-w-[130px] flex flex-col items-end shrink-0 border-t border-slate-200 md:border-none pt-2 md:pt-0 mt-1 md:mt-0">
+                            <div class="text-[10px] font-bold text-slate-600 bg-white/80 px-2 py-0.5 rounded shadow-sm border border-black/5 mb-1 w-full text-right flex justify-between gap-3">
+                                <span>SYLLABUS:</span> <span class="${progress === 100 ? 'text-green-600' : 'text-indigo-600'}">${progress}%</span>
+                            </div>
+                            <div class="w-full flex flex-col items-end">
+                                ${testStatsHtml || '<span class="text-[9px] text-slate-400 italic">No MCQ scores yet</span>'}
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            },
+
+            renderScorecard() {
+                const body = document.getElementById('scorecard-body');
+                body.innerHTML = '';
+                let rows = [];
+
+                this.data.forEach(day => {
+                    const primarySub = day.topics.length > 0 ? day.topics[0].sub : 'General';
+                    day.tests.forEach(test => {
+                        let previousNet = null;
+                        test.attempts.forEach((att, index) => {
+                            if(att.evaluated) {
+                                let diffHtml = '-';
+                                if(previousNet !== null) {
+                                    const diff = att.stats.net - previousNet;
+                                    if(diff > 0) diffHtml = `<span class="text-green-600 font-bold">▲ +${diff.toFixed(2)}</span>`;
+                                    else if(diff < 0) diffHtml = `<span class="text-red-500 font-bold">▼ ${diff.toFixed(2)}</span>`;
+                                    else diffHtml = `<span class="text-slate-400 font-bold">= 0.00</span>`;
+                                }
+                                rows.push({ sub: primarySub, src: test.source, attNum: index + 1, time: att.totalTimeSeconds || 0, cor: att.stats.correct, wrg: att.stats.wrong, net: att.stats.net, diffHtml: diffHtml });
+                                previousNet = att.stats.net;
+                            }
+                        });
+                    });
+                });
+
+                rows.sort((a,b) => a.sub.localeCompare(b.sub) || a.src.localeCompare(b.src) || a.attNum - b.attNum);
+
+                rows.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 border-b last:border-0';
+                    tr.innerHTML = `
+                        <td class="px-6 py-3 font-semibold text-slate-700">${row.sub}</td>
+                        <td class="px-6 py-3 text-slate-600 italic">${row.src}</td>
+                        <td class="px-6 py-3 text-center text-slate-600 font-bold">#${row.attNum}</td>
+                        <td class="px-6 py-3 text-center text-slate-500 font-mono text-xs">${this.formatTime(row.time)}</td>
+                        <td class="px-6 py-3 text-center text-green-600 font-bold">${row.cor}</td>
+                        <td class="px-6 py-3 text-center text-red-500 font-bold">${row.wrg}</td>
+                        <td class="px-6 py-3 text-center text-indigo-600 font-bold">${row.net.toFixed(2)}</td>
+                        <td class="px-6 py-3 text-center text-sm">${row.diffHtml}</td>
+                    `;
+                    body.appendChild(tr);
+                });
+                if(rows.length === 0) body.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400 italic">No evaluated attempts found yet.</td></tr>`;
+            },
+
+            openModal(idx) {
+                this.activeDayIndex = idx;
+                const day = this.data[idx];
+                document.getElementById('day-modal').classList.remove('hidden');
+                document.getElementById('modal-title').innerText = `Day ${day.dayNum}`;
+                document.getElementById('modal-date').innerText = new Date(day.date).toDateString();
+                
+                const badge = document.getElementById('modal-phase-badge');
+                badge.className = `text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 inline-block border bg-white uppercase ${day.phase===1?'text-sky-600 border-sky-200':day.phase===2?'text-yellow-600 border-yellow-200':'text-green-600 border-green-200'}`;
+                badge.innerText = `Phase ${day.phase}`;
+
+                const topicContainer = document.getElementById('modal-topics');
+                if(day.topics.length === 0) {
+                    topicContainer.innerHTML = '<p class="text-sm text-slate-500 italic">No specific syllabus topics today.</p>';
+                } else {
+                    topicContainer.innerHTML = day.topics.map((t, i) => `
+                        <label class="flex items-start cursor-pointer group mb-1.5 last:mb-0">
+                            <input type="checkbox" id="chk-top-${i}" ${t.completed ? 'checked' : ''} class="mt-0.5 w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                            <span class="ml-2.5 text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition leading-snug ${t.completed ? 'line-through text-slate-400' : ''}">${t.txt}</span>
+                        </label>
+                    `).join('');
+                }
+
+                const tC = document.getElementById('modal-tasks-container');
+                const cb = (id, lbl, chk) => `<label class="flex items-center cursor-pointer group bg-slate-50 p-2 rounded border hover:bg-indigo-50 hover:border-indigo-200 transition"><input type="checkbox" id="chk-${id}" ${chk?'checked':''} class="w-4 h-4 mr-2.5 accent-indigo-600 cursor-pointer"><span class="font-bold text-sm text-slate-700">${lbl}</span></label>`;
+                tC.innerHTML = '';
+                if(day.phase === 1) tC.innerHTML += cb('reading', 'Phase 1: Reading completed', day.tasks.reading);
+                if(day.phase === 2) tC.innerHTML += cb('rev1', 'Phase 2: Revision 1 completed', day.tasks.rev1);
+                if(day.phase === 3) tC.innerHTML += cb('rev2', 'Phase 3: Revision 2 completed', day.tasks.rev2);
+                
+                document.getElementById('modal-minutes').value = day.timeMins || '';
+                this.renderModalTestsList();
+            },
+
+            renderModalTestsList() {
+                const day = this.data[this.activeDayIndex];
+                const list = document.getElementById('modal-tests-list');
+                list.innerHTML = '';
+                if(day.tests.length === 0) {
+                    list.innerHTML = `<p class="text-xs text-slate-400 italic bg-white p-3 rounded border text-center">No MCQ sources added yet.</p>`;
+                    return;
+                }
+
+                day.tests.forEach((test, tIndex) => {
+                    const activeAtt = test.attempts[test.activeAttemptIndex];
+                    let bestScore = 0;
+                    test.attempts.forEach(att => { if(att.evaluated && att.stats.net > bestScore) bestScore = att.stats.net; });
+                    const isEval = activeAtt && activeAtt.evaluated;
+                    
+                    const scoreDisplay = bestScore > 0 
+                        ? `<span class="text-green-700 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">Best: ${bestScore.toFixed(2)}</span>`
+                        : `<span class="text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold">Pending Eval</span>`;
+                    const reattemptBtn = isEval ? `<button onclick="app.reattemptTest(${tIndex})" class="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold underline mr-2 transition"><i class="fas fa-redo mr-1"></i>Reattempt</button>` : '';
+
+                    list.innerHTML += `
+                        <div class="border border-slate-200 rounded p-2 bg-white flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm gap-2">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-800 leading-tight">${test.source}</h4>
+                                <p class="text-[10px] text-slate-500">${test.totalQs} Qs • Att ${test.attempts.length}</p>
+                            </div>
+                            <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+                                ${scoreDisplay}
+                                <div class="flex items-center">
+                                    ${reattemptBtn}
+                                    <button onclick="app.openOMR(${tIndex})" class="bg-slate-800 hover:bg-slate-900 text-white px-2 py-1 rounded text-xs font-semibold transition mr-1.5">Open OMR</button>
+                                    <button onclick="app.deleteTest(${tIndex})" class="text-red-400 hover:text-red-600 transition text-sm"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            },
+
+            addTest() {
+                const src = document.getElementById('new-test-source').value.trim();
+                const count = parseInt(document.getElementById('new-test-count').value);
+                if(!src || isNaN(count) || count <= 0) { alert('Please enter a valid source name and number of questions.'); return; }
+                
+                this.data[this.activeDayIndex].tests.push({
+                    source: src, totalQs: count, activeAttemptIndex: 0,
+                    attempts: [{ answers: {}, keyString: "", evaluated: false, stats: { attempted: 0, correct: 0, wrong: 0, net: 0 }, totalTimeSeconds: 0, qTimes: {} }]
+                });
+                document.getElementById('new-test-source').value = '';
+                document.getElementById('new-test-count').value = '';
+                this.saveData();
+                this.renderModalTestsList();
+            },
+
+            reattemptTest(tIndex) {
+                if(confirm("Start a new attempt? Previous scores will be saved in history.")) {
+                    const test = this.data[this.activeDayIndex].tests[tIndex];
+                    test.attempts.push({
+                        answers: {}, keyString: test.attempts[test.activeAttemptIndex].keyString, evaluated: false, 
+                        stats: { attempted: 0, correct: 0, wrong: 0, net: 0 }, totalTimeSeconds: 0, qTimes: {}
+                    });
+                    test.activeAttemptIndex = test.attempts.length - 1;
+                    this.saveData();
+                    this.renderModalTestsList();
+                    this.openOMR(tIndex);
+                }
+            },
+
+            deleteTest(tIndex) {
+                if(confirm("Delete this entire test and all its attempts?")) {
+                    this.data[this.activeDayIndex].tests.splice(tIndex, 1);
+                    this.saveData();
+                    this.renderModalTestsList();
+                }
+            },
+
+            closeModal() {
+                this.saveModalData();
+                document.getElementById('day-modal').classList.add('hidden');
+                this.activeDayIndex = null;
+                this.renderStripe();
+            },
+
+            saveModalData() {
+                if(this.activeDayIndex === null) return;
+                const day = this.data[this.activeDayIndex];
+                day.topics.forEach((t, i) => { const cb = document.getElementById(`chk-top-${i}`); if(cb) t.completed = cb.checked; });
+                if(document.getElementById('chk-reading')) day.tasks.reading = document.getElementById('chk-reading').checked;
+                if(document.getElementById('chk-rev1')) day.tasks.rev1 = document.getElementById('chk-rev1').checked;
+                if(document.getElementById('chk-rev2')) day.tasks.rev2 = document.getElementById('chk-rev2').checked;
+                day.timeMins = parseInt(document.getElementById('modal-minutes').value) || 0;
+                this.saveData();
+            },
+
+            // --- Advanced OMR Tracker ---
+
+            openOMR(tIndex) {
+                this.activeTestIndex = tIndex;
+                const day = this.data[this.activeDayIndex];
+                const test = day.tests[tIndex];
+                const activeAtt = test.attempts[test.activeAttemptIndex];
+
+                if(!activeAtt.qTimes) activeAtt.qTimes = {};
+                if(!activeAtt.totalTimeSeconds) activeAtt.totalTimeSeconds = 0;
+                this.currentTotalSeconds = activeAtt.totalTimeSeconds;
+                this.activeQuestion = null;
+
+                document.getElementById('omr-modal').classList.remove('hidden');
+                document.getElementById('omr-title').innerText = `OMR: ${test.source} (Att ${test.activeAttemptIndex + 1})`;
+                document.getElementById('omr-subtitle').innerText = `Day ${day.dayNum} • ${test.totalQs} Qs`;
+                document.getElementById('omr-key-input').value = activeAtt.keyString || '';
+                document.getElementById('omr-global-timer').innerText = this.formatTime(this.currentTotalSeconds);
+                
+                this.buildOMRGrid();
+                this.renderOMRHistory();
+                
+                if(activeAtt.evaluated) {
+                    document.getElementById('omr-global-timer').classList.add('text-slate-400');
+                    document.getElementById('omr-global-timer').classList.remove('text-amber-400');
+                    this.showOMRResults(activeAtt);
+                } else {
+                    document.getElementById('omr-results').classList.add('hidden');
+                    document.getElementById('omr-global-timer').classList.remove('text-slate-400');
+                    document.getElementById('omr-global-timer').classList.add('text-amber-400');
+                    this.startTimer();
+                }
+            },
+
+            buildOMRGrid() {
+                const test = this.data[this.activeDayIndex].tests[this.activeTestIndex];
+                const activeAtt = test.attempts[test.activeAttemptIndex];
+                const container = document.getElementById('omr-questions');
+                container.innerHTML = '';
+                
+                let keyMap = {};
+                if(activeAtt.evaluated && activeAtt.keyString) {
+                    const parsed = activeAtt.keyString.replace(/[^A-D]/gi, '').toUpperCase();
+                    for(let i=0; i<parsed.length; i++) keyMap[i+1] = parsed[i];
+                }
+
+                for(let i = 1; i <= test.totalQs; i++) {
+                    const qTime = activeAtt.qTimes[i] || 0;
+                    const qDiv = document.createElement('div');
+                    qDiv.id = `q-row-${i}`;
+                    qDiv.className = 'omr-q-row flex flex-col gap-1.5 bg-white p-2 rounded border border-slate-200 shadow-sm cursor-pointer';
+                    if(!activeAtt.evaluated) {
+                        qDiv.onmouseenter = () => this.setActiveQuestion(i);
+                        qDiv.onclick = () => this.setActiveQuestion(i);
+                    }
+                    
+                    let html = `
+                        <div class="flex justify-between items-center w-full">
+                            <span class="font-bold text-xs text-slate-500">Q${i}.</span>
+                            <span id="q-time-badge-${i}" class="text-[9px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">${this.formatTime(qTime)}</span>
+                        </div>
+                        <div class="flex gap-1.5 omr-radio justify-between w-full">
+                    `;
+                    
+                    ['A', 'B', 'C', 'D'].forEach(opt => {
+                        const isChecked = activeAtt.answers[i] === opt;
+                        let evalClass = "";
+                        if(activeAtt.evaluated) {
+                            const correctAns = keyMap[i];
+                            const userAns = activeAtt.answers[i];
+                            if (userAns === opt && userAns === correctAns) evalClass = "omr-correct";
+                            else if (userAns === opt && userAns !== correctAns) evalClass = "omr-wrong";
+                            else if (!userAns && correctAns === opt) evalClass = "omr-missed-key";
+                            else if (userAns && userAns !== opt && correctAns === opt) evalClass = "omr-missed-key";
+                        }
+
+                        html += `
+                            <label class="cursor-pointer relative flex-1">
+                                <input type="radio" name="q${i}" value="${opt}" class="hidden" ${isChecked ? 'checked' : ''} onchange="app.markAnswer(${i}, '${opt}')" ${activeAtt.evaluated ? 'disabled' : ''}>
+                                <div class="w-full h-7 rounded border-2 border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 hover:border-indigo-400 transition ${evalClass}">${opt}</div>
+                            </label>
+                        `;
+                    });
+                    
+                    html += `</div>`;
+                    qDiv.innerHTML = html;
+                    container.appendChild(qDiv);
+                }
+            },
+
+            setActiveQuestion(qNum) {
+                this.activeQuestion = qNum;
+                document.querySelectorAll('.omr-q-row').forEach(el => el.classList.remove('omr-q-active'));
+                document.getElementById(`q-row-${qNum}`).classList.add('omr-q-active');
+            },
+
+            startTimer() {
+                clearInterval(this.timerInterval);
+                this.timerInterval = setInterval(() => {
+                    this.currentTotalSeconds++;
+                    document.getElementById('omr-global-timer').innerText = this.formatTime(this.currentTotalSeconds);
+                    const test = this.data[this.activeDayIndex].tests[this.activeTestIndex];
+                    const activeAtt = test.attempts[test.activeAttemptIndex];
+                    activeAtt.totalTimeSeconds = this.currentTotalSeconds;
+
+                    if(this.activeQuestion) {
+                        if(!activeAtt.qTimes[this.activeQuestion]) activeAtt.qTimes[this.activeQuestion] = 0;
+                        activeAtt.qTimes[this.activeQuestion]++;
+                        const badge = document.getElementById(`q-time-badge-${this.activeQuestion}`);
+                        if(badge) badge.innerText = this.formatTime(activeAtt.qTimes[this.activeQuestion]);
+                    }
+                }, 1000);
+            },
+
+            markAnswer(qNum, opt) {
+                this.setActiveQuestion(qNum);
+                const activeAtt = this.data[this.activeDayIndex].tests[this.activeTestIndex].attempts[this.data[this.activeDayIndex].tests[this.activeTestIndex].activeAttemptIndex];
+                if(activeAtt.evaluated) return;
+                activeAtt.answers[qNum] = opt;
+                this.saveData();
+            },
+
+            evaluateOMR() {
+                const test = this.data[this.activeDayIndex].tests[this.activeTestIndex];
+                const activeAtt = test.attempts[test.activeAttemptIndex];
+                const keyStr = document.getElementById('omr-key-input').value.trim();
+                const cleanKey = keyStr.replace(/[^A-D]/gi, '').toUpperCase();
+                
+                if(cleanKey.length === 0) { alert("Please enter a valid answer key."); return; }
+                if(cleanKey.length < test.totalQs) { if(!confirm(`Only ${cleanKey.length} answers provided for ${test.totalQs} questions. Evaluate anyway?`)) return; }
+
+                clearInterval(this.timerInterval);
+                document.getElementById('omr-global-timer').classList.add('text-slate-400');
+                document.getElementById('omr-global-timer').classList.remove('text-amber-400');
+
+                let att = 0, cor = 0, wrg = 0;
+                for(let i=1; i<=test.totalQs; i++) {
+                    const user = activeAtt.answers[i];
+                    const actual = cleanKey[i-1];
+                    if(user) {
+                        att++;
+                        if(actual && user === actual) cor++;
+                        else if (actual && user !== actual) wrg++;
+                    }
+                }
+
+                activeAtt.keyString = keyStr;
+                activeAtt.evaluated = true;
+                activeAtt.stats = { attempted: att, correct: cor, wrong: wrg, net: cor - (wrg * 0.25) };
+                
+                this.saveData();
+                this.buildOMRGrid();
+                this.showOMRResults(activeAtt);
+                this.renderOMRHistory();
+                this.renderModalTestsList();
+            },
+
+            showOMRResults(activeAtt) {
+                document.getElementById('omr-results').classList.remove('hidden');
+                document.getElementById('res-total').innerText = this.data[this.activeDayIndex].tests[this.activeTestIndex].totalQs;
+                document.getElementById('res-att').innerText = activeAtt.stats.attempted;
+                document.getElementById('res-cor').innerText = activeAtt.stats.correct;
+                document.getElementById('res-wrg').innerText = activeAtt.stats.wrong;
+                document.getElementById('res-net').innerText = activeAtt.stats.net.toFixed(2);
+            },
+
+            renderOMRHistory() {
+                const test = this.data[this.activeDayIndex].tests[this.activeTestIndex];
+                const list = document.getElementById('omr-history-list');
+                list.innerHTML = '';
+                if(test.attempts.length <= 1 && !test.attempts[0].evaluated) {
+                    list.innerHTML = '<div class="text-[10px] text-slate-400 italic">No evaluated attempts yet.</div>';
+                    return;
+                }
+                test.attempts.forEach((att, idx) => {
+                    if(!att.evaluated) return;
+                    const isCurrent = idx === test.activeAttemptIndex;
+                    list.innerHTML += `
+                        <div class="bg-slate-50 border rounded p-2 ${isCurrent ? 'ring-2 ring-indigo-500' : 'opacity-70'}">
+                            <div class="flex justify-between items-center mb-1 border-b pb-1">
+                                <span class="font-bold text-slate-700 text-[10px]">Attempt ${idx + 1} ${isCurrent ? '(Current)' : ''}</span>
+                                <span class="font-bold text-indigo-600 text-[10px]">${att.stats.net.toFixed(2)}</span>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span class="text-green-600 font-semibold"><i class="fas fa-check mr-1"></i>${att.stats.correct}</span>
+                                <span class="text-red-500 font-semibold"><i class="fas fa-times mr-1"></i>${att.stats.wrong}</span>
+                                <span class="font-mono bg-slate-200 px-1 rounded"><i class="fas fa-stopwatch mr-1"></i>${this.formatTime(att.totalTimeSeconds)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            },
+
+            closeOMR() {
+                clearInterval(this.timerInterval);
+                this.saveData();
+                document.getElementById('omr-modal').classList.add('hidden');
+                this.activeTestIndex = null;
+                this.activeQuestion = null;
+                if(this.activeDayIndex !== null) this.renderModalTestsList();
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
